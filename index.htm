@@ -1,0 +1,120 @@
+<html>
+	<head>
+		<title>Course Prereq Tree</title>
+		<script type="text/javascript" src="ECOTree.js"></script>
+		<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+		<link type="text/css" rel="stylesheet" href="ECOTree.css" />
+
+		<style>
+			.copy {
+				font-family : "Verdana";				
+				font-size : 10px;
+				color : #CCCCCC;
+			}			
+		</style>
+			
+		<script>
+			var myTree = null;
+			
+			function CreateTree() {
+
+				myTree = new ECOTree('myTree','myTreeContainer');	
+				myTree.config.colorStyle = ECOTree.CS_LEVEL;
+				myTree.config.nodeFill = ECOTree.NF_FLAT;
+				myTree.config.useTarget = false;
+				myTree.config.selectMode = ECOTree.SL_MULTIPLE;
+				myTree.config.defaultNodeWidth = 65;
+				myTree.config.defaultNodeHeight = 30;
+				myTree.config.iSubtreeSeparation = 10;
+				myTree.config.iSiblingSeparation = 10;
+				myTree.config.iLevelSeparation = 10;
+				myTree.add(1,-1,"root");
+				id = 2;
+
+			}	
+			
+			var courses = new Array()
+			function getPrereq(course, pid){
+				if (courses[course] == undefined){		
+					var URL = "prereq.php?q=" + escape(course);
+					$.ajax({
+					  url: URL,
+					  success: function(data) {
+					    //$('.result').html(data);
+					    if (data.data == null){
+					    	console.log("unknown course");
+					    	courses[course] = "unknown";
+
+					    }
+					    else{
+						    var out  = data.data[0].Prerequisites;
+						    console.log("Length of prerequisites: " + out.length);
+						    out = out[0];
+						    courses[course] = out;
+						    console.log(out);
+						    buildTree(out, pid);
+						   
+					    }
+					  }
+					});
+				}
+				else{
+					var out = courses[course];
+					if (out != "unknown"){
+					    buildTree(out, pid);
+					}
+				}
+				myTree.UpdateTree();
+			}
+			
+			var id;
+			
+			function buildTree(courseArray, pid){
+				if (courseArray[0] == "or" || courseArray[0] == 1){
+			    	myTree.add(id, pid, "or");
+			    	pid = id;
+			    	incrementId();
+			    }
+			    else if (courseArray[0] == "pair"){
+			    	c1 = courseArray[1].Department + " " + courseArray[1].Number;
+			    	c2 = courseArray[2].Department + " " + courseArray[2].Number;
+			    	myTree.add(id, pid, c1 + " / " + c2);
+			    	pid = id;
+			    	incrementId();
+			    	getPrereq(courseArray[1].Department + " " + courseArray[1].Number, id - 1);
+			    	
+			    	courseArray = ['Done'];
+			    }
+			    for (var i = 1; i < courseArray.length; i++){
+			    	if ($.isArray(courseArray[i])){
+			    		buildTree(courseArray[i], pid);
+			    	}
+			    	else{
+			    		createCourse(courseArray[i], pid);
+			    	}
+			    }
+			}
+			
+			
+			function incrementId(){
+				id = id + 1;
+			}
+			
+			function createCourse(course, pid){
+				myTree.add(id,pid,course.Department + " " + course.Number);
+				incrementId();
+				getPrereq(course.Department + " " + course.Number, id - 1);
+				
+				console.log("done adding" + course.Department + " " + course.Number);
+				
+			}		
+		</script>			
+	</head>
+	<body onload="CreateTree();">
+		<h4>Course Prerequisite Tree&nbsp;</h4>
+		<span>Enter course - e.g. CS 350</span>
+		<input type="text" style="height:40px; font-size:35px" id="course" value="CS 350"/></input><button id="go" onclick="javascript:CreateTree();getPrereq($('#course').val(), 1)">Create Tree</button>
+		<div id="myTreeContainer">
+		</div>
+	</body>
+</html>
